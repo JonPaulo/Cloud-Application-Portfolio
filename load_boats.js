@@ -1,0 +1,115 @@
+
+const LOAD_BOAT = "Load_Boat";
+const LOADS = 'Loads';
+const BOATS = "Boats";
+
+const ds = require('./datastore');
+const datastore = ds.datastore;
+
+const get_load = async function get_load(id) {
+    var key = datastore.key([LOADS, parseInt(id, 10)]);
+    return await datastore.get(key);
+}
+
+const get_boat = async function get_boat(id) {
+    var key = datastore.key([BOATS, parseInt(id, 10)]);
+    return await datastore.get(key);
+}
+
+const get_boat_assigned_to_load = async function get_boat_assigned_to_load(load_id) {
+    var key = datastore.key([LOAD_BOAT, parseInt(load_id, 10)]);
+    return await datastore.get(key);
+}
+
+const remove_load_boat_relationship = function remove_load_boat_relationship(load_id) {
+    const key = datastore.key([LOAD_BOAT, parseInt(load_id, 10)]);
+    return datastore.delete(key);
+}
+
+const remove_load_from_boat = async function remove_load_from_boat(load_id) {
+    return get_boat_assigned_to_load(load_id).then(async boat => {
+        // Only remove if there is a relationship
+        if (boat[0] != undefined) {
+            var boat_details = await get_boat(boat[0].boat_id);
+            
+            // Find load inside the boat and filter it out
+            const updated_data = boat_details[0].loads.filter(load => load.id !== load_id);
+            boat_details[0].loads = updated_data;
+
+            // Update the boat's data
+            var key = datastore.key([BOATS, parseInt(boat[0].boat_id, 10)]);
+            return datastore.save({ "key": key, "data": boat_details[0] });
+        }
+        else {
+            return;
+        }
+    });
+};
+
+
+const remove_all_loads_from_boat = function remove_all_loads_from_boat(boat_id) {
+    return get_boat(boat_id).then(async boat => {
+        if (boat[0] != null) {
+            if (boat[0].loads.length > 0) {
+                for (load of boat[0].loads) {
+                    await remove_load_from_boat(load.id);
+                    remove_load_boat_relationship(load.id);
+                }
+            }
+            return 204;
+        } else {
+            return 404;
+        }
+    });
+};
+
+const put_loads = async function put_loads(boat_id, load_id) {
+    const boat = await get_boat(boat_id);
+    const boat_exists = (boat[0] != null);
+    let load_already_assigned;
+
+    // Make sure that boat exists in the first place
+    if (boat_exists) {
+        return get_load(load_id).then(async load => {
+            const load_not_in_boat = boat[0].loads.find(load => load.id === load_id) == undefined;
+            var relationship_key = datastore.key([LOAD_BOAT, parseInt(load_id, 10)]);
+            const load_boat_status = await datastore.get(relationship_key);
+
+            // If load_boat relationship exists, set to true
+            if (load_boat_status[0] != undefined && load_boat_status[0].boat_id != undefined) {
+                load_already_assigned = true;
+            } else {
+                load_already_assigned = false;
+            }
+            // If load doesn't exist, return 404
+            if (load[0] == null) {
+                return 404;
+            } else if (load_not_in_boat && !load_already_assigned) {
+                // If load isn't in the boat & the load hasn't been assigned yet, assign it to the boat
+                return datastore.save({ "key": relationship_key, "data": { 'boat_id': boat_id } }).then(() => {
+                    var key = datastore.key([BOATS, parseInt(boat_id, 10)]);
+                    boat[0].loads.push({ "id": load_id });
+                    return datastore.save({ "key": key, "data": boat[0] }).then(() => {
+                        return 204;
+                    });
+                });
+
+            } else {
+                return 403;
+            }
+        });
+    } else {
+        return 404;
+    }
+}
+
+module.exports.get_load = get_load;
+module.exports.get_boat = get_boat;
+module.exports.BOATS = BOATS;
+module.exports.LOADS = LOADS;
+module.exports.LOAD_BOAT = LOAD_BOAT;
+module.exports.put_loads = put_loads;
+module.exports.get_boat_assigned_to_load = get_boat_assigned_to_load;
+module.exports.remove_load_from_boat = remove_load_from_boat;
+module.exports.remove_load_boat_relationship = remove_load_boat_relationship;
+module.exports.remove_all_loads_from_boat = remove_all_loads_from_boat;
