@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS 493: Portfolio Assignment - Welcome</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+
+<body>
+    <link rel="stylesheet" href="/css/style.css">
+    <div class='container' id='maincontent'>
+        <h1>Welcome!</h1>
+        <h1>CS 493 - Portfolio Assignment</h1>
+        <h3>By Jon Paulo Bautista</h3>
+        <form action="/login" method="POST">
+            <h1>Log In</h1>
+            <div class="form-group">
+                <label for="exampleInputEmail1">Email address</label>
+                <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp"
+                    placeholder="Enter email" name="username">
+            </div>
+            <div class="form-group">
+                <label for="exampleInputPassword1">Password</label>
+                <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password"
+                    name="password">
+            </div>
+            <button type="submit" class="btn btn-primary">Log In</button>
+        </form>
+        <form action="/signup" method="POST">
+            <h1>Sign Up</h1>
+            <p><b>Important!</b> To create a valid password, you must include at least:</p>
+            <ul>
+                <li>8 characters minimum</li>
+                <li>3 of the following 4:</li>
+                <ul>
+                    <li>1 lowercase</li>
+                    <li>1 uppercase</li>
+                    <li>1 number</li>
+                    <li>1 special character</li>
+                </ul>
+            </ul>
+            <div class="form-group">
+                <label for="exampleInputEmail1">Email address</label>
+                <input type="email" class="form-control" id="exampleInputEmail1" aria-describedby="emailHelp"
+                    placeholder="Enter email" name="username">
+            </div>
+            <div class="form-group">
+                <label for="exampleInputPassword1">Password</label>
+                <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password"
+                    name="password">
+            </div>
+            <button type="submit" class="btn btn-primary">Sign Up</button>
+        </form>
+    </div>
+</body>
+
+</html>
