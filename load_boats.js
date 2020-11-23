@@ -13,6 +13,7 @@ const datastore = ds.datastore;
 
 const jwt = require('express-jwt');
 const jwksRsa = require('jwks-rsa');
+const jwt_decode = require('jwt-decode');
 
 const checkJwt = jwt({
     secret: jwksRsa.expressJwtSecret({
@@ -26,6 +27,11 @@ const checkJwt = jwt({
     issuer: `https://${DOMAIN}/`,
     algorithms: ['RS256']
 });
+
+const display_owner = function display_owner(token) {
+    const decoded = jwt_decode(token.access_token);
+    return decoded.sub;
+}
 
 const get_load = async function get_load(id) {
     var key = datastore.key([LOADS, parseInt(id, 10)]);
@@ -140,3 +146,4 @@ module.exports.DOMAIN = DOMAIN;
 module.exports.CLIENT_ID = CLIENT_ID;
 module.exports.CLIENT_SECRET = CLIENT_SECRET;
 module.exports.USERS = USERS;
+module.exports.display_owner = display_owner;

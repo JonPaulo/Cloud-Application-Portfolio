@@ -22,6 +22,7 @@ const get_boat = lb.get_boat;
 const BOATS = lb.BOATS;
 const put_loads = lb.put_loads;
 const checkJwt = lb.checkJwt;
+const display_owner = lb.display_owner;
 
 /* -------------            BOATS              ------------- */
 /* ------------- Begin Boating Model Functions ------------- */
@@ -166,19 +167,29 @@ router.post('/', checkJwt, function (req, res) {
     // console.log(req.user);
 });
 
-router.put('/:id', function (req, res) {
-    put_boats(req.params.id, req.body.name, req.body.type, req.body.length)
-        .then(res.status(200).end());
-});
-
-router.patch('/:id', function (req, res) {
+router.put('/:id', checkJwt, function (req, res) {
     get_boat(req.params.id).then(boat => {
         if (boat[0] == null) {
             res.status(404).json({ "Error": "No boat with this boat_id exists" });
+        } else if (boat[0].owner != req.user.sub) {
+            res.status(401).send({ "Error": 'Unauthorized Request' });
         } else if (!(req.body.name && req.body.type && req.body.length)) {
             res.status(400).send({
                 "Error": "The request object is missing at least one of the required attributes"
             });
+        } else {
+            put_boats(req.params.id, req.body.name, req.body.type, req.body.length)
+                .then(res.status(200).end());
+        }
+    });
+});
+
+router.patch('/:id', checkJwt, function (req, res) {
+    get_boat(req.params.id).then(boat => {
+        if (boat[0] == null) {
+            res.status(404).json({ "Error": "No boat with this boat_id exists" });
+        } else if (boat[0].owner != req.user.sub) {
+            res.status(401).send({ "Error": 'Unauthorized Request' });
         } else {
             patch_boats(req.params.id, req.body).then(new_boat => {
                 new_boat.id = req.params.id;
@@ -189,10 +200,12 @@ router.patch('/:id', function (req, res) {
     });
 });
 
-router.delete('/:id', function (req, res) {
+router.delete('/:id', checkJwt, function (req, res) {
     get_boat(req.params.id).then(async boat => {
         if (boat[0] == null) {
             res.status(404).json({ "Error": "No boat with this boat_id exists" });
+        } else if (boat[0].owner != req.user.sub) {
+            res.status(401).send({ "Error": 'Unauthorized Request' });
         } else {
             remove_all_loads_from_boat(req.params.id).then(() => {
                 delete_boat(req.params.id);
@@ -203,10 +216,12 @@ router.delete('/:id', function (req, res) {
 });
 
 // Only removes the load from the boat
-router.delete('/:boat_id/loads/:load_id', function (req, res) {
+router.delete('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
     get_boat_assigned_to_load(req.params.load_id).then(async result => {
         if (result[0] === undefined) {
             res.status(404).json({ "Error": "No boat with this boat_id is carrying this load with this load_id" });
+        } else if (result[0].owner != req.user.sub) {
+            res.status(401).send({ "Error": 'Unauthorized Request' });
         } else {
             if (result[0].boat_id == req.params.boat_id) {
                 // If load belongs to boat:

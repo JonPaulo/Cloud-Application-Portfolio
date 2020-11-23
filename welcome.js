@@ -3,7 +3,6 @@ const bodyParser = require('body-parser');
 
 const ejs = require('ejs');
 const request = require('request');
-const jwt_decode = require('jwt-decode');
 
 const app = express();
 
@@ -21,6 +20,7 @@ const CLIENT_ID = lb.CLIENT_ID;
 const CLIENT_SECRET = lb.CLIENT_SECRET;
 const DOMAIN = lb.DOMAIN;
 const USERS = lb.USERS;
+const display_owner = lb.display_owner;
 
 
 function save_user(email, user_id) {
@@ -77,11 +77,8 @@ router.post('/login', function (req, res) {
         if (error) {
             res.status(500).send(error);
         } else {
-            // console.log(body);
-            const decoded = jwt_decode(body.access_token);
-            const user_id = decoded.sub;
-            console.log(user_id);
-            return res.render(__dirname + '/views/userinfo.ejs', { access_token: body.access_token, user_id: user_id });
+            // console.log(display_owner(body));
+            return res.render(__dirname + '/views/userinfo.ejs', { access_token: body.access_token, user_id: display_owner(body) });
         }
     });
 });
@@ -135,9 +132,8 @@ router.post('/signup', function (req, res) {
                 if (error) {
                     res.status(500).send(error);
                 } else {
-                    const decoded = jwt_decode(body.access_token);
-                    const user_id = decoded.sub;
-                    console.log(user_id);
+                    const user_id = display_owner(body);
+                    // console.log(user_id);
                     save_user(email, user_id);
                     return res.render(__dirname + '/views/userinfo.ejs', { access_token: body.access_token, user_id: user_id });
                 }
