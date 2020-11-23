@@ -34,10 +34,15 @@ function post_boats(name, type, length, owner) {
     });
 }
 
-function get_boats(owner,) {
-    const q = datastore.createQuery(BOATS);
+function get_boats(owner, offset) {
+    let q;
+    if (offset != null) {
+        q = datastore.createQuery(BOATS).limit(6).offset(offset);
+    } else {
+        q = datastore.createQuery(BOATS).limit(6);
+    }
     return datastore.runQuery(q).then((entities) => {
-        return entities[0].map(fromDatastore).filter(item => item.owner === owner);
+        return [entities[0].map(fromDatastore).filter(item => item.owner === owner), entities[1]];
     });
 }
 
@@ -68,14 +73,18 @@ function delete_boat(boat_id) {
 /* ------------- Begin Controller Functions ------------- */
 
 router.get('/', checkJwt, function (req, res) {
-    get_boats(req.user.sub).then((boats) => {
-        for (const boat of boats) {
+    get_boats(req.user.sub, req.query.offset).then((boats) => {
+        for (const boat of boats[0]) {
             boat.self = req.protocol + '://' + req.hostname + '/boats/' + boat.id;
-            if (boat.loads.length > 0) {
+            if (boat.loads != null && boat.loads.length > 0) {
                 boat.loads.forEach(load => {
                     load.self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
                 });
             }
+        }
+        if (boats[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
+            const offset = (parseInt(req.query.offset)) || 0;
+            boats[1].next = req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 6);
         }
         res.status(200).json(boats);
     });
