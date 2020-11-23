@@ -90,7 +90,7 @@ const remove_all_loads_from_boat = function remove_all_loads_from_boat(boat_id) 
     });
 };
 
-const put_loads = async function put_loads(boat_id, load_id) {
+const put_load_to_boat = async function put_load_to_boat(boat_id, load_id) {
     const boat = await get_boat(boat_id);
     const boat_exists = (boat[0] != null);
     let load_already_assigned;
@@ -135,7 +135,7 @@ module.exports.get_boat = get_boat;
 module.exports.BOATS = BOATS;
 module.exports.LOADS = LOADS;
 module.exports.LOAD_BOAT = LOAD_BOAT;
-module.exports.put_loads = put_loads;
+module.exports.put_loads = put_load_to_boat;
 module.exports.get_boat_assigned_to_load = get_boat_assigned_to_load;
 module.exports.remove_load_from_boat = remove_load_from_boat;
 module.exports.remove_load_boat_relationship = remove_load_boat_relationship;

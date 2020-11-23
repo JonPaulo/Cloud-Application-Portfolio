@@ -20,7 +20,7 @@ const remove_all_loads_from_boat = lb.remove_all_loads_from_boat;
 const get_load = lb.get_load;
 const get_boat = lb.get_boat;
 const BOATS = lb.BOATS;
-const put_loads = lb.put_loads;
+const put_load_to_boat = lb.put_load_to_boat;
 const checkJwt = lb.checkJwt;
 const display_owner = lb.display_owner;
 
@@ -73,6 +73,25 @@ function delete_boat(boat_id) {
 /* ------------- End Boating Model Functions ------------- */
 /* ------------- Begin Controller Functions ------------- */
 
+// POST new boat
+router.post('/', checkJwt, function (req, res) {
+    if (req.get('content-type') !== 'application/json') {
+        res.status(415).send('Server only accepts application/json data.')
+    } else if (!(req.body.name && req.body.type && req.body.length)) {
+        res.status(400).send({
+            "Error": "The request object is missing at least one of the required attributes"
+        });
+    } else {
+        post_boats(req.body.name, req.body.type, req.body.length, req.user.sub).then(key => {
+            res.location(req.protocol + "://" + req.get('host') + req.baseUrl + '/' + key.id);
+            res.status(201).send('{ "id": ' + key.id + ' }')
+        });
+    }
+    // console.log('/ posted new content');
+    // console.log(req.user);
+});
+
+// GET all boats
 router.get('/', checkJwt, function (req, res) {
     get_boats(req.user.sub, req.query.offset).then((boats) => {
         for (const boat of boats[0]) {
@@ -91,7 +110,8 @@ router.get('/', checkJwt, function (req, res) {
     });
 });
 
-router.get('/:id', function (req, res) {
+// GET a boat
+router.get('/:id', checkJwt, function (req, res) {
     get_boat(req.params.id).then((boat) => {
         if (boat[0] != null) {
             boat[0].id = req.params.id;
@@ -109,10 +129,9 @@ router.get('/:id', function (req, res) {
     );
 });
 
-
-
+// PUT a load to a boat
 router.put('/:boat_id/loads/:load_id', function (req, res) {
-    put_loads(req.params.boat_id, req.params.load_id)
+    put_load_to_boat(req.params.boat_id, req.params.load_id)
         .then(response => {
             if (response == 404) {
                 return res.status(404).json({
@@ -128,6 +147,7 @@ router.put('/:boat_id/loads/:load_id', function (req, res) {
         });
 });
 
+// GET all boat's loads
 router.get('/:id/loads', function (req, res) {
     get_boat(req.params.id).then(async boat => {
         if (boat[0] != null) {
@@ -149,24 +169,7 @@ router.get('/:id/loads', function (req, res) {
     );
 });
 
-// Create new boat
-router.post('/', checkJwt, function (req, res) {
-    if (req.get('content-type') !== 'application/json') {
-        res.status(415).send('Server only accepts application/json data.')
-    } else if (!(req.body.name && req.body.type && req.body.length)) {
-        res.status(400).send({
-            "Error": "The request object is missing at least one of the required attributes"
-        });
-    } else {
-        post_boats(req.body.name, req.body.type, req.body.length, req.user.sub).then(key => {
-            res.location(req.protocol + "://" + req.get('host') + req.baseUrl + '/' + key.id);
-            res.status(201).send('{ "id": ' + key.id + ' }')
-        });
-    }
-    // console.log('/ posted new content');
-    // console.log(req.user);
-});
-
+// PUT - Edit a boat
 router.put('/:id', checkJwt, function (req, res) {
     get_boat(req.params.id).then(boat => {
         if (boat[0] == null) {
@@ -184,6 +187,7 @@ router.put('/:id', checkJwt, function (req, res) {
     });
 });
 
+// PATCH - Edit a boat
 router.patch('/:id', checkJwt, function (req, res) {
     get_boat(req.params.id).then(boat => {
         if (boat[0] == null) {
@@ -200,6 +204,7 @@ router.patch('/:id', checkJwt, function (req, res) {
     });
 });
 
+// DELETE a boat
 router.delete('/:id', checkJwt, function (req, res) {
     get_boat(req.params.id).then(async boat => {
         if (boat[0] == null) {
