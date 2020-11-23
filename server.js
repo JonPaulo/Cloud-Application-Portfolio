@@ -1,7 +1,17 @@
 const express = require('express');
 const app = express();
 
-app.use('/', require('./index'));
+app.use('/', require('./index'), function (err, req, res, next) {
+    if (req.method === 'POST' && err.name === 'UnauthorizedError') {
+        res.status(401).send({ "Error": 'Invalid Token' });
+    } else if (req.method === 'GET' && err.name === 'UnauthorizedError') {
+        console.log('invalid token');
+        res.status(401).send({ "Error": 'Invalid Token' });
+    } else if (req.method === 'DELETE' && err.name === 'UnauthorizedError') {
+        res.status(401).send({ "Error": 'Invalid Token' });
+    }
+});
+
 app.use('/', express.static('public'));
 app.set('view engine', 'ejs');
 app.enable('trust proxy');

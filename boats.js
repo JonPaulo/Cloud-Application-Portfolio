@@ -10,6 +10,7 @@ router.use(bodyParser.json());
 
 const ds = require('./datastore');
 const datastore = ds.datastore;
+const fromDatastore = ds.fromDatastore;
 
 const lb = require('./load_boats.js');
 const get_boat_assigned_to_load = lb.get_boat_assigned_to_load;
@@ -20,27 +21,23 @@ const get_load = lb.get_load;
 const get_boat = lb.get_boat;
 const BOATS = lb.BOATS;
 const put_loads = lb.put_loads;
+const checkJwt = lb.checkJwt;
 
 /* -------------            BOATS              ------------- */
 /* ------------- Begin Boating Model Functions ------------- */
-function post_boats(name, type, length) {
+function post_boats(name, type, length, owner) {
     var key = datastore.key(BOATS);
-    const new_boat = { "name": name, "type": type, "length": length, "loads": [] };
+    const new_boat = { "name": name, "type": type, "length": length, "owner": owner, "loads": [] };
     return datastore.save({ "key": key, "data": new_boat }).then(() => {
         new_boat.id = key.id;
         return new_boat;
     });
 }
 
-function get_boats(offset) {
-    let q;
-    if (offset != null) {
-        q = datastore.createQuery(BOATS).limit(3).offset(offset);
-    } else {
-        q = datastore.createQuery(BOATS).limit(3);
-    }
+function get_boats(owner,) {
+    const q = datastore.createQuery(BOATS);
     return datastore.runQuery(q).then((entities) => {
-        return [entities[0].map(ds.fromDatastore), entities[1]];
+        return entities[0].map(fromDatastore).filter(item => item.owner === owner);
     });
 }
 
@@ -70,10 +67,9 @@ function delete_boat(boat_id) {
 /* ------------- End Boating Model Functions ------------- */
 /* ------------- Begin Controller Functions ------------- */
 
-
-router.get('/', function (req, res) {
-    get_boats(req.query.offset).then((boats) => {
-        for (const boat of boats[0]) {
+router.get('/', checkJwt, function (req, res) {
+    get_boats(req.user.sub).then((boats) => {
+        for (const boat of boats) {
             boat.self = req.protocol + '://' + req.hostname + '/boats/' + boat.id;
             if (boat.loads.length > 0) {
                 boat.loads.forEach(load => {
@@ -81,15 +77,9 @@ router.get('/', function (req, res) {
                 });
             }
         }
-        var response = [boats[0]];
-        if (boats[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
-            const offset = (parseInt(req.query.offset)) || 0;
-            response.push({ "next": req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 3) });
-        }
-        res.status(200).json(response);
+        res.status(200).json(boats);
     });
 });
-
 
 router.get('/:id', function (req, res) {
     get_boat(req.params.id).then((boat) => {
@@ -149,19 +139,22 @@ router.get('/:id/loads', function (req, res) {
     );
 });
 
-router.post('/', function (req, res) {
-    if (!(req.body.name && req.body.type && req.body.length)) {
+// Create new boat
+router.post('/', checkJwt, function (req, res) {
+    if (req.get('content-type') !== 'application/json') {
+        res.status(415).send('Server only accepts application/json data.')
+    } else if (!(req.body.name && req.body.type && req.body.length)) {
         res.status(400).send({
             "Error": "The request object is missing at least one of the required attributes"
         });
     } else {
-        post_boats(req.body.name, req.body.type, req.body.length)
-            .then(boat => {
-                boat.self = req.protocol + '://' + req.hostname + req.originalUrl + '/' + boat.id;
-                res.status(201).json(boat);
-            });
+        post_boats(req.body.name, req.body.type, req.body.length, req.user.sub).then(key => {
+            res.location(req.protocol + "://" + req.get('host') + req.baseUrl + '/' + key.id);
+            res.status(201).send('{ "id": ' + key.id + ' }')
+        });
     }
-
+    // console.log('/ posted new content');
+    // console.log(req.user);
 });
 
 router.put('/:id', function (req, res) {

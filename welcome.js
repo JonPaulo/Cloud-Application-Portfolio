@@ -3,8 +3,6 @@ const bodyParser = require('body-parser');
 
 const ejs = require('ejs');
 const request = require('request');
-const jwt = require('express-jwt');
-const jwksRsa = require('jwks-rsa');
 const jwt_decode = require('jwt-decode');
 
 const app = express();
@@ -17,24 +15,13 @@ const router = express.Router();
 const ds = require('./datastore');
 const datastore = ds.datastore;
 
-const CLIENT_ID = 'Xet163M2T0BWadprW3WGxlnoDIHf9bLw';
-const CLIENT_SECRET = 'Mu_osBdNKxY8fJ3vh0KHGno0Xl2KV3m0qeX-VRT11PTacVz0bRXYS-XWwvSqFVXe';
-const DOMAIN = 'dev-rf93icrq.us.auth0.com';
-const USERS = 'Users';
 
+const lb = require('./load_boats.js');
+const CLIENT_ID = lb.CLIENT_ID;
+const CLIENT_SECRET = lb.CLIENT_SECRET;
+const DOMAIN = lb.DOMAIN;
+const USERS = lb.USERS;
 
-const checkJwt = jwt({
-    secret: jwksRsa.expressJwtSecret({
-        cache: true,
-        rateLimit: true,
-        jwksRequestsPerMinute: 5,
-        jwksUri: `https://${DOMAIN}/.well-known/jwks.json`
-    }),
-
-    // Validate the audience and the issuer.
-    issuer: `https://${DOMAIN}/`,
-    algorithms: ['RS256']
-});
 
 function save_user(email, user_id) {
     var key = datastore.key(USERS);

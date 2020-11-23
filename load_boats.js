@@ -2,9 +2,30 @@
 const LOAD_BOAT = "Load_Boat";
 const LOADS = 'Loads';
 const BOATS = "Boats";
+const USERS = 'Users';
+
+const CLIENT_ID = 'Xet163M2T0BWadprW3WGxlnoDIHf9bLw';
+const CLIENT_SECRET = 'Mu_osBdNKxY8fJ3vh0KHGno0Xl2KV3m0qeX-VRT11PTacVz0bRXYS-XWwvSqFVXe';
+const DOMAIN = 'dev-rf93icrq.us.auth0.com';
 
 const ds = require('./datastore');
 const datastore = ds.datastore;
+
+const jwt = require('express-jwt');
+const jwksRsa = require('jwks-rsa');
+
+const checkJwt = jwt({
+    secret: jwksRsa.expressJwtSecret({
+        cache: true,
+        rateLimit: true,
+        jwksRequestsPerMinute: 5,
+        jwksUri: `https://${DOMAIN}/.well-known/jwks.json`
+    }),
+
+    // Validate the audience and the issuer.
+    issuer: `https://${DOMAIN}/`,
+    algorithms: ['RS256']
+});
 
 const get_load = async function get_load(id) {
     var key = datastore.key([LOADS, parseInt(id, 10)]);
@@ -113,3 +134,9 @@ module.exports.get_boat_assigned_to_load = get_boat_assigned_to_load;
 module.exports.remove_load_from_boat = remove_load_from_boat;
 module.exports.remove_load_boat_relationship = remove_load_boat_relationship;
 module.exports.remove_all_loads_from_boat = remove_all_loads_from_boat;
+
+module.exports.checkJwt = checkJwt;
+module.exports.DOMAIN = DOMAIN;
+module.exports.CLIENT_ID = CLIENT_ID;
+module.exports.CLIENT_SECRET = CLIENT_SECRET;
+module.exports.USERS = USERS;
