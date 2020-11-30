@@ -129,24 +129,6 @@ router.get('/:id', checkJwt, function (req, res) {
     );
 });
 
-// PUT a load to a boat
-router.put('/:boat_id/loads/:load_id', function (req, res) {
-    put_load_to_boat(req.params.boat_id, req.params.load_id)
-        .then(response => {
-            if (response == 404) {
-                return res.status(404).json({
-                    "Error": "The specified boat and/or load does not exist"
-                });
-            } else if (response == 204) {
-                return res.status(204).end();
-            } else if (response == 403) {
-                return res.status(403).json({
-                    "Error": "The load has already been assigned to a boat"
-                });
-            }
-        });
-});
-
 // GET all boat's loads
 router.get('/:id/loads', function (req, res) {
     get_boat(req.params.id).then(async boat => {
@@ -220,7 +202,25 @@ router.delete('/:id', checkJwt, function (req, res) {
     });
 });
 
-// Only removes the load from the boat
+// PUT - Assign a load to a boat
+router.put('/:boat_id/loads/:load_id', function (req, res) {
+    put_load_to_boat(req.params.boat_id, req.params.load_id)
+        .then(response => {
+            if (response == 404) {
+                return res.status(404).json({
+                    "Error": "The specified boat and/or load does not exist"
+                });
+            } else if (response == 204) {
+                return res.status(204).end();
+            } else if (response == 403) {
+                return res.status(403).json({
+                    "Error": "The load has already been assigned to a boat"
+                });
+            }
+        });
+});
+
+// DELETE - Remove a load from a boat
 router.delete('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
     get_boat_assigned_to_load(req.params.load_id).then(async result => {
         if (result[0] === undefined) {

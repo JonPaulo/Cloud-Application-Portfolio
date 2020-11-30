@@ -38,18 +38,18 @@ function get_loads(owner, offset) {
     });
 }
 
-async function post_loads(weight, content, delivery_date, owner) {
+async function post_loads(weight, content, quantity, owner) {
     var key = datastore.key(LOADS);
-    const new_load = { "weight": weight, "content": content, "delivery_date": delivery_date, "owner": owner };
+    const new_load = { "weight": weight, "content": content, "quantity": quantity, "owner": owner };
     return datastore.save({ "key": key, "data": new_load }).then(() => {
         new_load.id = key.id;
         return new_load;
     });
 }
 
-function put_load(id, weight, content, delivery_date, owner) {
+function put_load(id, weight, content, quantity, owner) {
     const key = datastore.key([LOADS, parseInt(id, 10)]);
-    const loads = { "weight": weight, "content": content, "delivery_date": delivery_date, "owner": owner };
+    const loads = { "weight": weight, "content": content, "quantity": quantity, "owner": owner };
     return datastore.save({ "key": key, "data": loads });
 }
 
@@ -95,12 +95,12 @@ async function delete_boat_load(load_id, boat_id) {
 router.post('/', checkJwt, function (req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(415).send('Server only accepts application/json data.')
-    } else if (!(req.body.weight != null & req.body.content != null & req.body.delivery_date != null)) {
+    } else if (!(req.body.weight != null & req.body.content != null & req.body.quantity != null)) {
         res.status(400).send({
             "Error": "The request object is missing at least one of the required attributes"
         });
     } else {
-        post_loads(req.body.weight, req.body.content, req.body.delivery_date, req.user.sub)
+        post_loads(req.body.weight, req.body.content, req.body.quantity, req.user.sub)
             .then(load => {
                 load.self = req.protocol + '://' + req.hostname + req.originalUrl + '/' + load.id;
                 res.status(201).json(load);
@@ -162,18 +162,18 @@ router.put('/:id', checkJwt, function (req, res) {
             res.status(404).json({ "Error": "No load with this load_id exists" });
         } else if (load[0].owner != req.user.sub) {
             res.status(401).send({ "Error": 'Unauthorized Request' });
-        } else if (!(req.body.weight && req.body.content && req.body.delivery_date)) {
+        } else if (!(req.body.weight && req.body.content && req.body.quantity)) {
             res.status(400).send({
                 "Error": "The request object is missing at least one of the required attributes"
             });
         } else {
-            put_load(req.params.id, req.body.weight, req.body.content, req.body.delivery_date, req.user.sub)
+            put_load(req.params.id, req.body.weight, req.body.content, req.body.quantity, req.user.sub)
                 .then(res.status(200).end());
         }
     });
 });
 
-// PATCH - Edit a boat
+// PATCH - Edit a load
 router.patch('/:id', checkJwt, function (req, res) {
     get_load(req.params.id).then(load => {
         if (load[0] == null) {
