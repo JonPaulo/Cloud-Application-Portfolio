@@ -111,6 +111,9 @@ router.get('/', checkJwt, function (req, res) {
         return res.status(406).send('Not Acceptable');
     } else {
         get_boats(req.user.sub, req.query.offset).then((boats) => {
+            if (boat[0].owner != req.user.sub) {
+                return res.status(403).send({ "Error": 'Unauthorized Request' });
+            }
             for (const boat of boats[0]) {
                 boat.self = req.protocol + '://' + req.hostname + '/boats/' + boat.id;
                 if (boat.loads != null && boat.loads.length > 0) {
@@ -135,6 +138,9 @@ router.get('/:id', checkJwt, function (req, res) {
         return res.status(406).send('Not Acceptable');
     } else {
         get_boat(req.params.id).then((boat) => {
+            if (boat[0].owner != req.user.sub) {
+                return res.status(403).send({ "Error": 'Unauthorized Request' });
+            }
             if (boat[0] != null) {
                 boat[0].id = req.params.id;
                 boat[0].self = req.protocol + '://' + req.hostname + req.originalUrl;
@@ -159,6 +165,9 @@ router.get('/:id/loads', function (req, res) {
     } else {
         get_boat(req.params.id).then(async boat => {
             if (boat[0] != null) {
+                if (boat[0].owner != req.user.sub) {
+                    return res.status(403).send({ "Error": 'Unauthorized Request' });
+                }
                 var load_array = [];
                 if (boat[0].loads.length > 0) {
                     for (load of boat[0].loads) {
@@ -183,7 +192,7 @@ router.put('/:id', checkJwt, function (req, res) {
         if (boat[0] == null) {
             res.status(404).json({ "Error": "No boat with this boat_id exists" });
         } else if (boat[0].owner != req.user.sub) {
-            res.status(401).send({ "Error": 'Unauthorized Request' });
+            res.status(403).send({ "Error": 'Unauthorized Request' });
         } else if (!(req.body.name && req.body.type && req.body.length)) {
             res.status(400).send({
                 "Error": "The request object is missing at least one of the required attributes"
@@ -201,7 +210,7 @@ router.patch('/:id', checkJwt, function (req, res) {
         if (boat[0] == null) {
             res.status(404).json({ "Error": "No boat with this boat_id exists" });
         } else if (boat[0].owner != req.user.sub) {
-            res.status(401).send({ "Error": 'Unauthorized Request' });
+            res.status(403).send({ "Error": 'Unauthorized Request' });
         } else {
             patch_boats(req.params.id, req.body).then(new_boat => {
                 new_boat.id = req.params.id;
@@ -218,7 +227,7 @@ router.delete('/:id', checkJwt, function (req, res) {
         if (boat[0] == null) {
             res.status(404).json({ "Error": "No boat with this boat_id exists" });
         } else if (boat[0].owner != req.user.sub) {
-            res.status(401).send({ "Error": 'Unauthorized Request' });
+            res.status(403).send({ "Error": 'Unauthorized Request' });
         } else {
             remove_all_loads_from_boat(req.params.id).then(() => {
                 delete_boat(req.params.id);
