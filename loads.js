@@ -87,12 +87,18 @@ async function delete_boat_load(load_id, boat_id) {
     });
 }
 
+const find_load = async function get_load(name) {
+    const query = datastore.createQuery(LOADS).filter('name', '=', name);
+    return datastore.runQuery(query).then(entities => {
+        return entities[0];
+    });
+}
 
 /* ------------- End Load Model Functions ------------- */
 /* ------------- Begin Controller Functions ------------- */
 
-// POST new load
-router.post('/', checkJwt, function (req, res) {
+// POST - Create a new load
+router.post('/', checkJwt, async function (req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(415).send('Server only accepts application/json data.')
     } else if (!(req.body.weight != null & req.body.content != null & req.body.quantity != null)) {
@@ -100,6 +106,13 @@ router.post('/', checkJwt, function (req, res) {
             "Error": "The request object is missing at least one of the required attributes"
         });
     } else {
+        // 403 Violation of the uniqueness constraint
+        const match_list = await find_load(req.body.name);
+        if (match_list.length > 0) {
+            return res.status(403).send({
+                "Error": "Load name already exists."
+            });
+        }
         post_loads(req.body.weight, req.body.content, req.body.quantity, req.user.sub)
             .then(load => {
                 load.self = req.protocol + '://' + req.hostname + req.originalUrl + '/' + load.id;
@@ -108,51 +121,60 @@ router.post('/', checkJwt, function (req, res) {
     }
 });
 
-// GET all loads
+// GET - View all loads
 router.get('/', checkJwt, async function (req, res) {
-    var loads = await get_loads(req.user.sub, req.query.offset);
-    for (const load of loads[0]) {
-        load.self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
-        var id = await get_boat_assigned_to_load(load.id);
-        // If a load has a carrier, add it to the JSON
-        if (id[0] != undefined) {
-            var boat = await get_boat(id[0].boat_id);
-            const self = req.protocol + '://' + req.hostname + '/boats/' + id[0].boat_id;
-            load.carrier = { "id": id[0].boat_id, "name": boat[0].name, "self": self };
-        } else {
-            load.carrier = null;
+    const accepts = req.accepts(['application/json', 'text/html']);
+    if (!accepts) {
+        return res.status(406).send('Not Acceptable');
+    } else {
+        var loads = await get_loads(req.user.sub, req.query.offset);
+        for (const load of loads[0]) {
+            load.self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
+            var id = await get_boat_assigned_to_load(load.id);
+            // If a load has a carrier, add it to the JSON
+            if (id[0] != undefined) {
+                var boat = await get_boat(id[0].boat_id);
+                const self = req.protocol + '://' + req.hostname + '/boats/' + id[0].boat_id;
+                load.carrier = { "id": id[0].boat_id, "name": boat[0].name, "self": self };
+            } else {
+                load.carrier = null;
+            }
         }
+        if (loads[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
+            const offset = (parseInt(req.query.offset)) || 0;
+            response.push({ "next": req.protocol + '://' + req.hostname + '/loads?offset=' + (offset + 3) });
+        }
+        res.status(200).json(loads);
     }
-    if (loads[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
-        const offset = (parseInt(req.query.offset)) || 0;
-        response.push({ "next": req.protocol + '://' + req.hostname + '/loads?offset=' + (offset + 3) });
-    }
-    res.status(200).json(loads);
 });
 
-// GET a load
+// GET - View a load
 router.get('/:id', checkJwt, function (req, res) {
-    get_load(req.params.id).then(load => {
-        if (load[0] != null) {
-            load[0].id = req.params.id;
-            load[0].self = req.protocol + '://' + req.hostname + req.originalUrl;
-            get_boat_assigned_to_load(req.params.id).then(id => {
-                if (id[0] != undefined) {
-                    get_boat(id[0].boat_id).then(boat => {
-                        const self = req.protocol + '://' + req.hostname + '/boats/' + id[0].boat_id;
-                        load[0].carrier = { "id": id[0].boat_id, "name": boat[0].name, "self": self };
+    const accepts = req.accepts(['application/json', 'text/html']);
+    if (!accepts) {
+        return res.status(406).send('Not Acceptable');
+    } else {
+        get_load(req.params.id).then(load => {
+            if (load[0] != null) {
+                load[0].id = req.params.id;
+                load[0].self = req.protocol + '://' + req.hostname + req.originalUrl;
+                get_boat_assigned_to_load(req.params.id).then(id => {
+                    if (id[0] != undefined) {
+                        get_boat(id[0].boat_id).then(boat => {
+                            const self = req.protocol + '://' + req.hostname + '/boats/' + id[0].boat_id;
+                            load[0].carrier = { "id": id[0].boat_id, "name": boat[0].name, "self": self };
+                            res.status(200).json(load[0]);
+                        });
+                    } else {
+                        load[0].carrier = null;
                         res.status(200).json(load[0]);
-                    });
-                } else {
-                    load[0].carrier = null;
-                    res.status(200).json(load[0]);
-                }
-            });
-        } else {
-            res.status(404).json({ "Error": "No load with this load_id exists" });
-        }
+                    }
+                });
+            } else {
+                res.status(404).json({ "Error": "No load with this load_id exists" });
+            }
+        });
     }
-    );
 });
 
 // PUT - Edit a load
@@ -190,7 +212,7 @@ router.patch('/:id', checkJwt, function (req, res) {
     });
 });
 
-// DELETE a load
+// DELETE - Delete a load
 router.delete('/:id', checkJwt, function (req, res) {
     get_load(req.params.id).then(async load => {
         if (load[0] == null) {
@@ -204,6 +226,16 @@ router.delete('/:id', checkJwt, function (req, res) {
         }
     });
 });
+
+// Disallow PUT or DELETE on root load URL
+router.put('/', function (req, res) {
+    return res.status(405).set("Allow", "GET, POST").send({ "Error": "PUT requests on the root load URL is not allowed." });
+});
+
+router.delete('/', function (req, res) {
+    return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root load URL is not allowed." });
+});
+
 
 
 /* ------------- End Controller Functions ------------- */

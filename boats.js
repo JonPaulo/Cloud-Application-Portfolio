@@ -67,14 +67,20 @@ async function patch_boats(id, body) {
 function delete_boat(boat_id) {
     const key = datastore.key([BOATS, parseInt(boat_id, 10)]);
     return datastore.delete(key);
+}
 
+const find_boat = async function get_boat(name) {
+    const query = datastore.createQuery(BOATS).filter('name', '=', name);
+    return datastore.runQuery(query).then(entities => {
+        return entities[0];
+    });
 }
 
 /* ------------- End Boating Model Functions ------------- */
 /* ------------- Begin Controller Functions ------------- */
 
-// POST new boat
-router.post('/', checkJwt, function (req, res) {
+// POST - Create a new boat
+router.post('/', checkJwt, async function (req, res) {
     if (req.get('content-type') !== 'application/json') {
         res.status(415).send('Server only accepts application/json data.')
     } else if (!(req.body.name && req.body.type && req.body.length)) {
@@ -82,6 +88,13 @@ router.post('/', checkJwt, function (req, res) {
             "Error": "The request object is missing at least one of the required attributes"
         });
     } else {
+        // 403 Violation of the uniqueness constraint
+        const match_list = await find_boat(req.body.name);
+        if (match_list.length > 0) {
+            return res.status(403).send({
+                "Error": "Boat name already exists."
+            });
+        }
         post_boats(req.body.name, req.body.type, req.body.length, req.user.sub).then(key => {
             res.location(req.protocol + "://" + req.get('host') + req.baseUrl + '/' + key.id);
             res.status(201).send('{ "id": ' + key.id + ' }')
@@ -91,64 +104,77 @@ router.post('/', checkJwt, function (req, res) {
     // console.log(req.user);
 });
 
-// GET all boats
+// GET - View all boats
 router.get('/', checkJwt, function (req, res) {
-    get_boats(req.user.sub, req.query.offset).then((boats) => {
-        for (const boat of boats[0]) {
-            boat.self = req.protocol + '://' + req.hostname + '/boats/' + boat.id;
-            if (boat.loads != null && boat.loads.length > 0) {
-                boat.loads.forEach(load => {
-                    load.self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
-                });
-            }
-        }
-        if (boats[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
-            const offset = (parseInt(req.query.offset)) || 0;
-            boats[1].next = req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 6);
-        }
-        res.status(200).json(boats);
-    });
-});
-
-// GET a boat
-router.get('/:id', checkJwt, function (req, res) {
-    get_boat(req.params.id).then((boat) => {
-        if (boat[0] != null) {
-            boat[0].id = req.params.id;
-            boat[0].self = req.protocol + '://' + req.hostname + req.originalUrl;
-            if (boat[0].loads.length > 0) {
-                boat[0].loads.forEach(load => {
-                    load.self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
-                });
-            }
-            res.status(200).json(boat[0]);
-        } else {
-            res.status(404).json({ "Error": "No boat with this boat_id exists" });
-        }
-    }
-    );
-});
-
-// GET all boat's loads
-router.get('/:id/loads', function (req, res) {
-    get_boat(req.params.id).then(async boat => {
-        if (boat[0] != null) {
-            var load_array = [];
-            if (boat[0].loads.length > 0) {
-                for (load of boat[0].loads) {
-                    const load_content = await get_load(load.id);
-                    const load_id = load.id;
-                    load_content[0].id = load_id;
-                    load_content[0].self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
-                    load_array.push(load_content[0]);
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Not Acceptable');
+    } else {
+        get_boats(req.user.sub, req.query.offset).then((boats) => {
+            for (const boat of boats[0]) {
+                boat.self = req.protocol + '://' + req.hostname + '/boats/' + boat.id;
+                if (boat.loads != null && boat.loads.length > 0) {
+                    boat.loads.forEach(load => {
+                        load.self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
+                    });
                 }
             }
-            res.status(200).json(load_array);
-        } else {
-            res.status(404).json({ "Error": "No boat with this boat_id exists" });
-        }
+            if (boats[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
+                const offset = (parseInt(req.query.offset)) || 0;
+                boats[1].next = req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 6);
+            }
+            res.status(200).json(boats);
+        });
     }
-    );
+});
+
+// GET - View a boat
+router.get('/:id', checkJwt, function (req, res) {
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Not Acceptable');
+    } else {
+        get_boat(req.params.id).then((boat) => {
+            if (boat[0] != null) {
+                boat[0].id = req.params.id;
+                boat[0].self = req.protocol + '://' + req.hostname + req.originalUrl;
+                if (boat[0].loads.length > 0) {
+                    boat[0].loads.forEach(load => {
+                        load.self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
+                    });
+                }
+                res.status(200).json(boat[0]);
+            } else {
+                res.status(404).json({ "Error": "No boat with this boat_id exists" });
+            }
+        });
+    }
+});
+
+// GET - View all boat's loads
+router.get('/:id/loads', function (req, res) {
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Not Acceptable');
+    } else {
+        get_boat(req.params.id).then(async boat => {
+            if (boat[0] != null) {
+                var load_array = [];
+                if (boat[0].loads.length > 0) {
+                    for (load of boat[0].loads) {
+                        const load_content = await get_load(load.id);
+                        const load_id = load.id;
+                        load_content[0].id = load_id;
+                        load_content[0].self = req.protocol + '://' + req.hostname + '/loads/' + load.id;
+                        load_array.push(load_content[0]);
+                    }
+                }
+                res.status(200).json(load_array);
+            } else {
+                res.status(404).json({ "Error": "No boat with this boat_id exists" });
+            }
+        });
+    }
 });
 
 // PUT - Edit a boat
@@ -186,7 +212,7 @@ router.patch('/:id', checkJwt, function (req, res) {
     });
 });
 
-// DELETE a boat
+// DELETE - Delete a boat
 router.delete('/:id', checkJwt, function (req, res) {
     get_boat(req.params.id).then(async boat => {
         if (boat[0] == null) {
@@ -240,6 +266,16 @@ router.delete('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
         }
     });
 });
+
+// Disallow PUT or DELETE on root boat URL
+router.put('/', function (req, res) {
+    return res.status(405).set("Allow", "GET, POST").send({ "Error": "PUT requests on the root boat URL is not allowed." });
+});
+
+router.delete('/', function (req, res) {
+    return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root boat URL is not allowed." });
+});
+
 
 
 /* ------------- End Controller Functions ------------- */
