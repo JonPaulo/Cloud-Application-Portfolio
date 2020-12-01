@@ -58,7 +58,7 @@ const remove_load_from_boat = async function remove_load_from_boat(load_id) {
         // Only remove if there is a relationship
         if (boat[0] != undefined) {
             var boat_details = await get_boat(boat[0].boat_id);
-            
+
             // Find load inside the boat and filter it out
             const updated_data = boat_details[0].loads.filter(load => load.id !== load_id);
             boat_details[0].loads = updated_data;
@@ -90,7 +90,7 @@ const remove_all_loads_from_boat = function remove_all_loads_from_boat(boat_id) 
     });
 };
 
-const put_load_to_boat = async function put_load_to_boat(boat_id, load_id) {
+const put_load_to_boat = async function put_load_to_boat(boat_id, load_id, owner) {
     const boat = await get_boat(boat_id);
     const boat_exists = (boat[0] != null);
     let load_already_assigned;
@@ -98,6 +98,16 @@ const put_load_to_boat = async function put_load_to_boat(boat_id, load_id) {
     // Make sure that boat exists in the first place
     if (boat_exists) {
         return get_load(load_id).then(async load => {
+            // If load doesn't exist, return 404
+            if (load[0] == null) {
+                return [404, { "Error": "The specified boat and/or load does not exist" }];
+            }
+            // Validate ownership
+            if (!(load[0].owner === boat[0].owner && boat[0].owner === owner)) {
+                return [403, { "Error": 'Unauthorized Request' }];
+            }
+
+            // Verify that load has not been assigned yet
             const load_not_in_boat = boat[0].loads.find(load => load.id === load_id) == undefined;
             var relationship_key = datastore.key([LOAD_BOAT, parseInt(load_id, 10)]);
             const load_boat_status = await datastore.get(relationship_key);
@@ -108,25 +118,22 @@ const put_load_to_boat = async function put_load_to_boat(boat_id, load_id) {
             } else {
                 load_already_assigned = false;
             }
-            // If load doesn't exist, return 404
-            if (load[0] == null) {
-                return 404;
-            } else if (load_not_in_boat && !load_already_assigned) {
-                // If load isn't in the boat & the load hasn't been assigned yet, assign it to the boat
-                return datastore.save({ "key": relationship_key, "data": { 'boat_id': boat_id } }).then(() => {
+            
+            // If load isn't in the boat & the load hasn't been assigned yet, assign it to the boat
+            if (load_not_in_boat && !load_already_assigned) {
+                return datastore.save({ "key": relationship_key, "data": { 'boat_id': boat_id, 'owner': owner } }).then(() => {
                     var key = datastore.key([BOATS, parseInt(boat_id, 10)]);
                     boat[0].loads.push({ "id": load_id });
                     return datastore.save({ "key": key, "data": boat[0] }).then(() => {
                         return 204;
                     });
                 });
-
             } else {
-                return 403;
+                return [403, { "Error": "The load has already been assigned to a boat" }];
             }
         });
     } else {
-        return 404;
+        return [404, { "Error": "The specified boat and/or load does not exist" }];
     }
 }
 

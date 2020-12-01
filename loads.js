@@ -56,8 +56,14 @@ function put_load(id, weight, content, quantity, owner) {
 async function patch_load(id, body) {
     const key = datastore.key([LOADS, parseInt(id, 10)]);
     return get_load(id).then(async (load) => {
-        for (var attribute in body) {
-            load[0][attribute] = body[attribute];
+        if (body.content != null) {
+            load[0].content = body.content;
+        }
+        if (body.quantity != null) {
+            load[0].quantity = body.quantity;
+        }
+        if (body.weight != null) {
+            load[0].weight = body.weight;
         }
         datastore.save({ "key": key, "data": load[0] });
         return load[0];
@@ -87,12 +93,12 @@ async function delete_boat_load(load_id, boat_id) {
     });
 }
 
-const find_load = async function get_load(name) {
-    const query = datastore.createQuery(LOADS).filter('name', '=', name);
-    return datastore.runQuery(query).then(entities => {
-        return entities[0];
-    });
-}
+// const find_load = async function get_load(name) {
+//     const query = datastore.createQuery(LOADS).filter('name', '=', name);
+//     return datastore.runQuery(query).then(entities => {
+//         return entities[0];
+//     });
+// }
 
 /* ------------- End Load Model Functions ------------- */
 /* ------------- Begin Controller Functions ------------- */
@@ -106,13 +112,6 @@ router.post('/', checkJwt, async function (req, res) {
             "Error": "The request object is missing at least one of the required attributes"
         });
     } else {
-        // 403 Violation of the uniqueness constraint
-        const match_list = await find_load(req.body.name);
-        if (match_list.length > 0) {
-            return res.status(403).send({
-                "Error": "Load name already exists."
-            });
-        }
         post_loads(req.body.weight, req.body.content, req.body.quantity, req.user.sub)
             .then(load => {
                 load.self = req.protocol + '://' + req.hostname + req.originalUrl + '/' + load.id;

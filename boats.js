@@ -138,10 +138,10 @@ router.get('/:id', checkJwt, function (req, res) {
         return res.status(406).send('Not Acceptable');
     } else {
         get_boat(req.params.id).then((boat) => {
-            if (boat[0].owner != req.user.sub) {
-                return res.status(403).send({ "Error": 'Unauthorized Request' });
-            }
             if (boat[0] != null) {
+                if (boat[0].owner != req.user.sub) {
+                    return res.status(403).send({ "Error": 'Unauthorized Request' });
+                }
                 boat[0].id = req.params.id;
                 boat[0].self = req.protocol + '://' + req.hostname + req.originalUrl;
                 if (boat[0].loads.length > 0) {
@@ -238,26 +238,33 @@ router.delete('/:id', checkJwt, function (req, res) {
 });
 
 // PUT - Assign a load to a boat
-router.put('/:boat_id/loads/:load_id', function (req, res) {
-    put_load_to_boat(req.params.boat_id, req.params.load_id)
+router.put('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
+    put_load_to_boat(req.params.boat_id, req.params.load_id, req.user.sub)
         .then(response => {
-            if (response == 404) {
-                return res.status(404).json({
-                    "Error": "The specified boat and/or load does not exist"
-                });
-            } else if (response == 204) {
+            if (response == 204) {
                 return res.status(204).end();
-            } else if (response == 403) {
-                return res.status(403).json({
-                    "Error": "The load has already been assigned to a boat"
-                });
+            } else {
+                return res.status(response[0]).json(response[1]);
             }
+            // if (response == 404) {
+            //     return res.status(404).json({
+            //         "Error": "The specified boat and/or load does not exist"
+            //     });
+            // } else if (response == 204) {
+            //     return res.status(204).end();
+            // } else if (response == 403) {
+            //     return res.status(403).json({
+            //         "Error": "The load has already been assigned to a boat"
+            //     });
+            // }
         });
 });
 
 // DELETE - Remove a load from a boat
 router.delete('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
     get_boat_assigned_to_load(req.params.load_id).then(async result => {
+        console.log('result');
+        console.log(result);
         if (result[0] === undefined) {
             res.status(404).json({ "Error": "No boat with this boat_id is carrying this load with this load_id" });
         } else if (result[0].owner != req.user.sub) {
@@ -284,7 +291,6 @@ router.put('/', function (req, res) {
 router.delete('/', function (req, res) {
     return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root boat URL is not allowed." });
 });
-
 
 
 /* ------------- End Controller Functions ------------- */
