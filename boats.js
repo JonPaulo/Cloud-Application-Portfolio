@@ -53,7 +53,7 @@ function put_boats(id, name, type, length) {
     const key = datastore.key([BOATS, parseInt(id, 10)]);
     return get_boat(id).then(async (boat) => {
         boat[0].name = name || "";
-        boat[0].type = type ||  "";
+        boat[0].type = type || "";
         boat[0].length = length || 0;
         return datastore.save({ "key": key, "data": boat[0] });
     });
@@ -87,8 +87,9 @@ const find_boat = async function get_boat(name) {
 
 // POST - Create a new boat
 router.post('/', checkJwt, async function (req, res) {
-    if (req.get('content-type') !== 'application/json') {
-        res.status(415).send('Server only accepts application/json data.')
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
     } else if (!(req.body.name && req.body.type && req.body.length)) {
         res.status(400).send({
             "Error": "The request object is missing at least one of the required attributes"
@@ -114,7 +115,7 @@ router.post('/', checkJwt, async function (req, res) {
 router.get('/', checkJwt, function (req, res) {
     const accepts = req.accepts('application/json');
     if (!accepts) {
-        return res.status(406).send('Not Acceptable');
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
     } else {
         get_boats(req.user.sub, req.query.offset).then((boats) => {
             for (const boat of boats[0]) {
@@ -138,7 +139,9 @@ router.get('/', checkJwt, function (req, res) {
 router.get('/:id', checkJwt, function (req, res) {
     const accepts = req.accepts('application/json');
     if (!accepts) {
-        return res.status(406).send('Not Acceptable');
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else if (req.params.id === 'null') {
+        return res.status(404).json({ "Error": "No boat with this boat_id exists" });
     } else {
         get_boat(req.params.id).then((boat) => {
             if (boat[0] != null) {
@@ -161,10 +164,10 @@ router.get('/:id', checkJwt, function (req, res) {
 });
 
 // GET - View all boat's loads
-router.get('/:id/loads', function (req, res) {
+router.get('/:id/loads', checkJwt, function (req, res) {
     const accepts = req.accepts('application/json');
     if (!accepts) {
-        return res.status(406).send('Not Acceptable');
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
     } else {
         get_boat(req.params.id).then(async boat => {
             if (boat[0] != null) {
@@ -191,37 +194,47 @@ router.get('/:id/loads', function (req, res) {
 
 // PUT - Edit a boat
 router.put('/:id', checkJwt, function (req, res) {
-    get_boat(req.params.id).then(boat => {
-        if (boat[0] == null) {
-            res.status(404).json({ "Error": "No boat with this boat_id exists" });
-        } else if (boat[0].owner != req.user.sub) {
-            res.status(403).send({ "Error": 'Unauthorized Request' });
-        } else if (!(req.body.name && req.body.type && req.body.length)) {
-            res.status(400).send({
-                "Error": "The request object is missing at least one of the required attributes"
-            });
-        } else {
-            put_boats(req.params.id, req.body.name, req.body.type, req.body.length)
-                .then(res.status(200).end());
-        }
-    });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        get_boat(req.params.id).then(boat => {
+            if (boat[0] == null) {
+                res.status(404).json({ "Error": "No boat with this boat_id exists" });
+            } else if (boat[0].owner != req.user.sub) {
+                res.status(403).send({ "Error": 'Unauthorized Request' });
+            } else if (!(req.body.name && req.body.type && req.body.length)) {
+                res.status(400).send({
+                    "Error": "The request object is missing at least one of the required attributes"
+                });
+            } else {
+                put_boats(req.params.id, req.body.name, req.body.type, req.body.length)
+                    .then(res.status(200).end());
+            }
+        });
+    }
 });
 
 // PATCH - Edit a boat
 router.patch('/:id', checkJwt, function (req, res) {
-    get_boat(req.params.id).then(boat => {
-        if (boat[0] == null) {
-            res.status(404).json({ "Error": "No boat with this boat_id exists" });
-        } else if (boat[0].owner != req.user.sub) {
-            res.status(403).send({ "Error": 'Unauthorized Request' });
-        } else {
-            patch_boats(req.params.id, req.body).then(new_boat => {
-                new_boat.id = req.params.id;
-                new_boat.self = req.protocol + '://' + req.hostname + req.originalUrl;
-                res.status(200).json(new_boat);
-            });
-        }
-    });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        get_boat(req.params.id).then(boat => {
+            if (boat[0] == null) {
+                res.status(404).json({ "Error": "No boat with this boat_id exists" });
+            } else if (boat[0].owner != req.user.sub) {
+                res.status(403).send({ "Error": 'Unauthorized Request' });
+            } else {
+                patch_boats(req.params.id, req.body).then(new_boat => {
+                    new_boat.id = req.params.id;
+                    new_boat.self = req.protocol + '://' + req.hostname + req.originalUrl;
+                    res.status(200).json(new_boat);
+                });
+            }
+        });
+    }
 });
 
 // DELETE - Delete a boat
@@ -242,21 +255,24 @@ router.delete('/:id', checkJwt, function (req, res) {
 
 // PUT - Assign a load to a boat
 router.put('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
-    put_load_to_boat(req.params.boat_id, req.params.load_id, req.user.sub)
-        .then(response => {
-            if (response == 204) {
-                return res.status(204).end();
-            } else {
-                return res.status(response[0]).json(response[1]);
-            }
-        });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        put_load_to_boat(req.params.boat_id, req.params.load_id, req.user.sub)
+            .then(response => {
+                if (response == 204) {
+                    return res.status(204).end();
+                } else {
+                    return res.status(response[0]).json(response[1]);
+                }
+            });
+    }
 });
 
 // DELETE - Remove a load from a boat
 router.delete('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
     get_boat_assigned_to_load(req.params.load_id).then(async result => {
-        console.log('result');
-        console.log(result);
         if (result[0] === undefined) {
             res.status(404).json({ "Error": "No boat with this boat_id is carrying this load with this load_id" });
         } else if (result[0].owner != req.user.sub) {
@@ -277,11 +293,21 @@ router.delete('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
 
 // Disallow PUT or DELETE on root boat URL
 router.put('/', function (req, res) {
-    return res.status(405).set("Allow", "GET, POST").send({ "Error": "PUT requests on the root boat URL is not allowed." });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        return res.status(405).set("Allow", "GET, POST").send({ "Error": "PUT requests on the root boat URL is not allowed." });
+    }
 });
 
 router.delete('/', function (req, res) {
-    return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root boat URL is not allowed." });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root boat URL is not allowed." });
+    }
 });
 
 

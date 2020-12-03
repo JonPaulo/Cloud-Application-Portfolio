@@ -82,8 +82,9 @@ function delete_load(id) {
 
 // POST - Create a new load
 router.post('/', checkJwt, async function (req, res) {
-    if (req.get('content-type') !== 'application/json') {
-        res.status(415).send('Server only accepts application/json data.')
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
     } else if (!(req.body.weight != null & req.body.content != null & req.body.quantity != null)) {
         res.status(400).send({
             "Error": "The request object is missing at least one of the required attributes"
@@ -99,9 +100,9 @@ router.post('/', checkJwt, async function (req, res) {
 
 // GET - View all loads
 router.get('/', checkJwt, async function (req, res) {
-    const accepts = req.accepts(['application/json', 'text/html']);
+    const accepts = req.accepts('application/json');
     if (!accepts) {
-        return res.status(406).send('Not Acceptable');
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
     } else {
         var loads = await get_loads(req.user.sub, req.query.offset);
         for (const load of loads[0]) {
@@ -127,10 +128,12 @@ router.get('/', checkJwt, async function (req, res) {
 
 // GET - View a load
 router.get('/:id', checkJwt, function (req, res) {
-    const accepts = req.accepts(['application/json', 'text/html']);
+    const accepts = req.accepts('application/json');
     if (!accepts) {
-        return res.status(406).send('Not Acceptable');
-    } else {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else if (req.params.id === 'null') {
+        return res.status(404).json({ "Error": "No load with this load_id exists" });
+    } {
         get_load(req.params.id).then(load => {
             if (load[0] != null) {
                 if (load[0].owner != req.user.sub) {
@@ -177,19 +180,24 @@ router.put('/:id', checkJwt, function (req, res) {
 
 // PATCH - Edit a load
 router.patch('/:id', checkJwt, function (req, res) {
-    get_load(req.params.id).then(load => {
-        if (load[0] == null) {
-            res.status(404).json({ "Error": "No load with this load_id exists" });
-        } else if (load[0].owner != req.user.sub) {
-            res.status(403).send({ "Error": 'Unauthorized Request' });
-        } else {
-            patch_load(req.params.id, req.body).then(new_load => {
-                new_load.id = req.params.id;
-                new_load.self = req.protocol + '://' + req.hostname + req.originalUrl;
-                res.status(200).json(new_load);
-            });
-        }
-    });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        get_load(req.params.id).then(load => {
+            if (load[0] == null) {
+                res.status(404).json({ "Error": "No load with this load_id exists" });
+            } else if (load[0].owner != req.user.sub) {
+                res.status(403).send({ "Error": 'Unauthorized Request' });
+            } else {
+                patch_load(req.params.id, req.body).then(new_load => {
+                    new_load.id = req.params.id;
+                    new_load.self = req.protocol + '://' + req.hostname + req.originalUrl;
+                    res.status(200).json(new_load);
+                });
+            }
+        });
+    }
 });
 
 // DELETE - Delete a load
@@ -211,11 +219,21 @@ router.delete('/:id', checkJwt, function (req, res) {
 
 // Disallow PUT or DELETE on root load URL
 router.put('/', function (req, res) {
-    return res.status(405).set("Allow", "GET, POST").send({ "Error": "PUT requests on the root load URL is not allowed." });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        return res.status(405).set("Allow", "GET, POST").send({ "Error": "PUT requests on the root load URL is not allowed." });
+    }
 });
 
 router.delete('/', function (req, res) {
-    return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root load URL is not allowed." });
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } else {
+        return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root load URL is not allowed." });
+    }
 });
 
 
