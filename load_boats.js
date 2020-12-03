@@ -73,7 +73,6 @@ const remove_load_from_boat = async function remove_load_from_boat(load_id) {
     });
 };
 
-
 const remove_all_loads_from_boat = function remove_all_loads_from_boat(boat_id) {
     return get_boat(boat_id).then(async boat => {
         if (boat[0] != null) {
@@ -118,7 +117,7 @@ const put_load_to_boat = async function put_load_to_boat(boat_id, load_id, owner
             } else {
                 load_already_assigned = false;
             }
-            
+
             // If load isn't in the boat & the load hasn't been assigned yet, assign it to the boat
             if (load_not_in_boat && !load_already_assigned) {
                 return datastore.save({ "key": relationship_key, "data": { 'boat_id': boat_id, 'owner': owner } }).then(() => {

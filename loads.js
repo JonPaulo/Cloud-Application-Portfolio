@@ -28,12 +28,14 @@ const checkJwt = lb.checkJwt;
 function get_loads(owner, offset) {
     let q;
     if (offset != null) {
-        q = datastore.createQuery(LOADS).limit(6).offset(offset);
+        q = datastore.createQuery(LOADS).limit(5).offset(offset);
     } else {
-        q = datastore.createQuery(LOADS).limit(6);
+        q = datastore.createQuery(LOADS).limit(5);
     }
 
-    return datastore.runQuery(q).then((entities) => {
+    return datastore.runQuery(q).then(async entities => {
+        const count = await datastore.runQuery(datastore.createQuery(LOADS));
+        entities[1].totalItems = count[0].length;
         return [entities[0].map(fromDatastore).filter(item => item.owner === owner), entities[1]];
     });
 }
@@ -74,31 +76,6 @@ function delete_load(id) {
     const key = datastore.key([LOADS, parseInt(id, 10)]);
     return datastore.delete(key);
 }
-
-async function delete_boat_load(load_id, boat_id) {
-
-    const boat = await get_boat(boat_id);
-    const boat_exists = (boat[0] != null);
-
-    return get_load(load_id).then(load => {
-        if (load[0] == null || !boat_exists || load[0].current_boat == null || load[0].current_boat != boat_id) {
-            return 404;
-        } else {
-            load[0].current_boat = null;
-            var key = datastore.key([LOADS, parseInt(load_id, 10)]);
-            return datastore.save({ "key": key, "data": load[0] }).then(() => {
-                return 204;
-            });
-        }
-    });
-}
-
-// const find_load = async function get_load(name) {
-//     const query = datastore.createQuery(LOADS).filter('name', '=', name);
-//     return datastore.runQuery(query).then(entities => {
-//         return entities[0];
-//     });
-// }
 
 /* ------------- End Load Model Functions ------------- */
 /* ------------- Begin Controller Functions ------------- */
@@ -141,7 +118,8 @@ router.get('/', checkJwt, async function (req, res) {
         }
         if (loads[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
             const offset = (parseInt(req.query.offset)) || 0;
-            response.push({ "next": req.protocol + '://' + req.hostname + '/loads?offset=' + (offset + 3) });
+            loads[1].next = req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 5);
+            // loads.push({ "next": req.protocol + '://' + req.hostname + '/loads?offset=' + (offset + 5) });
         }
         res.status(200).json(loads);
     }
@@ -155,6 +133,9 @@ router.get('/:id', checkJwt, function (req, res) {
     } else {
         get_load(req.params.id).then(load => {
             if (load[0] != null) {
+                if (load[0].owner != req.user.sub) {
+                    return res.status(403).send({ "Error": 'Unauthorized Request' });
+                }
                 load[0].id = req.params.id;
                 load[0].self = req.protocol + '://' + req.hostname + req.originalUrl;
                 get_boat_assigned_to_load(req.params.id).then(id => {
@@ -182,7 +163,7 @@ router.put('/:id', checkJwt, function (req, res) {
         if (load[0] == null) {
             res.status(404).json({ "Error": "No load with this load_id exists" });
         } else if (load[0].owner != req.user.sub) {
-            res.status(401).send({ "Error": 'Unauthorized Request' });
+            res.status(403).send({ "Error": 'Unauthorized Request' });
         } else if (!(req.body.weight && req.body.content && req.body.quantity)) {
             res.status(400).send({
                 "Error": "The request object is missing at least one of the required attributes"
@@ -200,7 +181,7 @@ router.patch('/:id', checkJwt, function (req, res) {
         if (load[0] == null) {
             res.status(404).json({ "Error": "No load with this load_id exists" });
         } else if (load[0].owner != req.user.sub) {
-            res.status(401).send({ "Error": 'Unauthorized Request' });
+            res.status(403).send({ "Error": 'Unauthorized Request' });
         } else {
             patch_load(req.params.id, req.body).then(new_load => {
                 new_load.id = req.params.id;
@@ -216,6 +197,8 @@ router.delete('/:id', checkJwt, function (req, res) {
     get_load(req.params.id).then(async load => {
         if (load[0] == null) {
             res.status(404).json({ "Error": "No load with this load_id exists" });
+        } else if (load[0].owner != req.user.sub) {
+            res.status(403).send({ "Error": 'Unauthorized Request' });
         } else {
             remove_load_from_boat(req.params.id).then(() => {
                 remove_load_boat_relationship(req.params.id);
@@ -234,7 +217,6 @@ router.put('/', function (req, res) {
 router.delete('/', function (req, res) {
     return res.status(405).set("Allow", "GET, POST").send({ "Error": "DELETE requests on the root load URL is not allowed." });
 });
-
 
 
 /* ------------- End Controller Functions ------------- */

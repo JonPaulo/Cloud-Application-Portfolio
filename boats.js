@@ -38,19 +38,25 @@ function post_boats(name, type, length, owner) {
 function get_boats(owner, offset) {
     let q;
     if (offset != null) {
-        q = datastore.createQuery(BOATS).limit(6).offset(offset);
+        q = datastore.createQuery(BOATS).limit(5).offset(offset);
     } else {
-        q = datastore.createQuery(BOATS).limit(6);
+        q = datastore.createQuery(BOATS).limit(5);
     }
-    return datastore.runQuery(q).then((entities) => {
+    return datastore.runQuery(q).then(async entities => {
+        const count = await datastore.runQuery(datastore.createQuery(BOATS));
+        entities[1].totalItems = count[0].length;
         return [entities[0].map(fromDatastore).filter(item => item.owner === owner), entities[1]];
     });
 }
 
 function put_boats(id, name, type, length) {
     const key = datastore.key([BOATS, parseInt(id, 10)]);
-    const boats = { "name": name, "type": type, "length": length };
-    return datastore.save({ "key": key, "data": boats });
+    return get_boat(id).then(async (boat) => {
+        boat[0].name = name || "";
+        boat[0].type = type ||  "";
+        boat[0].length = length || 0;
+        return datastore.save({ "key": key, "data": boat[0] });
+    });
 }
 
 async function patch_boats(id, body) {
@@ -95,9 +101,9 @@ router.post('/', checkJwt, async function (req, res) {
                 "Error": "Boat name already exists."
             });
         }
-        post_boats(req.body.name, req.body.type, req.body.length, req.user.sub).then(key => {
-            res.location(req.protocol + "://" + req.get('host') + req.baseUrl + '/' + key.id);
-            res.status(201).send('{ "id": ' + key.id + ' }')
+        post_boats(req.body.name, req.body.type, req.body.length, req.user.sub).then(boat => {
+            boat.self = req.protocol + '://' + req.hostname + req.originalUrl + '/' + boat.id;
+            res.status(201).json(boat);
         });
     }
     // console.log('/ posted new content');
@@ -111,9 +117,6 @@ router.get('/', checkJwt, function (req, res) {
         return res.status(406).send('Not Acceptable');
     } else {
         get_boats(req.user.sub, req.query.offset).then((boats) => {
-            if (boat[0].owner != req.user.sub) {
-                return res.status(403).send({ "Error": 'Unauthorized Request' });
-            }
             for (const boat of boats[0]) {
                 boat.self = req.protocol + '://' + req.hostname + '/boats/' + boat.id;
                 if (boat.loads != null && boat.loads.length > 0) {
@@ -124,7 +127,7 @@ router.get('/', checkJwt, function (req, res) {
             }
             if (boats[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
                 const offset = (parseInt(req.query.offset)) || 0;
-                boats[1].next = req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 6);
+                boats[1].next = req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 5);
             }
             res.status(200).json(boats);
         });
@@ -246,17 +249,6 @@ router.put('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
             } else {
                 return res.status(response[0]).json(response[1]);
             }
-            // if (response == 404) {
-            //     return res.status(404).json({
-            //         "Error": "The specified boat and/or load does not exist"
-            //     });
-            // } else if (response == 204) {
-            //     return res.status(204).end();
-            // } else if (response == 403) {
-            //     return res.status(403).json({
-            //         "Error": "The load has already been assigned to a boat"
-            //     });
-            // }
         });
 });
 

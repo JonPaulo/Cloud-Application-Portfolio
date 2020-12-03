@@ -55,8 +55,8 @@ router.get('/users', function (req, res) {
 
 // Return token info on web page
 router.post('/login', function (req, res) {
-    console.log('/login');
-    console.log(req.body);
+    // console.log('/login');
+    // console.log(req.body);
     const username = req.body.username;
     const password = req.body.password;
     var options = {
