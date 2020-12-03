@@ -48,6 +48,10 @@ router.get('/', function (req, res) {
 
 // Get Users
 router.get('/users', function (req, res) {
+    const accepts = req.accepts('application/json');
+    if (!accepts) {
+        return res.status(406).send('Format not acceptable. \'application/json\' required');
+    } 
     get_users().then((users) => {
         res.status(200).json(users);
     });
@@ -76,8 +80,9 @@ router.post('/login', function (req, res) {
     request(options, (error, response, body) => {
         if (error) {
             res.status(500).send(error);
+        } else if (body.error === 'invalid_grant') {
+            return res.status(400).render(__dirname + '/views/error.ejs', { error: body.error, policy: body.error_description });
         } else {
-            // console.log(display_owner(body));
             return res.render(__dirname + '/views/userinfo.ejs', { access_token: body.access_token, user_id: display_owner(body) });
         }
     });
@@ -105,8 +110,8 @@ router.post('/signup', function (req, res) {
     request(options, (error, response, body) => {
         if (error) {
             res.status(500).send(error);
-        } else if (body.code === 'invalid_password') {
-            return res.status(400).render(__dirname + '/views/error.ejs', { error: body.message, policy: body.policy });
+        } else if (body.error === 'invalid_grant') {
+            return res.status(400).render(__dirname + '/views/error.ejs', { error: body.error, policy: body.error_description });
         } else {
             console.log('body 1');
             console.log(body);

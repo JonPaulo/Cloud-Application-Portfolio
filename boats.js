@@ -276,7 +276,7 @@ router.delete('/:boat_id/loads/:load_id', checkJwt, function (req, res) {
         if (result[0] === undefined) {
             res.status(404).json({ "Error": "No boat with this boat_id is carrying this load with this load_id" });
         } else if (result[0].owner != req.user.sub) {
-            res.status(401).send({ "Error": 'Unauthorized Request' });
+            res.status(403).send({ "Error": 'Unauthorized Request' });
         } else {
             if (result[0].boat_id == req.params.boat_id) {
                 // If load belongs to boat:
