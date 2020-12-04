@@ -27,7 +27,6 @@ function save_user(email, user_id) {
     var key = datastore.key(USERS);
     const data = { 'email': email, 'user_id': user_id };
     return datastore.save({ "key": key, "data": data }).then(() => {
-        // data.id = key.id;
         return data;
     });
 }
@@ -59,8 +58,6 @@ router.get('/users', function (req, res) {
 
 // Return token info on web page
 router.post('/login', function (req, res) {
-    // console.log('/login');
-    // console.log(req.body);
     const username = req.body.username;
     const password = req.body.password;
     var options = {
@@ -138,7 +135,6 @@ router.post('/signup', function (req, res) {
                     res.status(500).send(error);
                 } else {
                     const user_id = display_owner(body);
-                    // console.log(user_id);
                     save_user(email, user_id);
                     return res.render(__dirname + '/views/userinfo.ejs', { access_token: body.access_token, user_id: user_id });
                 }

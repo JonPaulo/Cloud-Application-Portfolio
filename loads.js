@@ -120,7 +120,6 @@ router.get('/', checkJwt, async function (req, res) {
         if (loads[1].moreResults === 'MORE_RESULTS_AFTER_LIMIT') {
             const offset = (parseInt(req.query.offset)) || 0;
             loads[1].next = req.protocol + '://' + req.hostname + '/boats?offset=' + (offset + 5);
-            // loads.push({ "next": req.protocol + '://' + req.hostname + '/loads?offset=' + (offset + 5) });
         }
         res.status(200).json(loads);
     }

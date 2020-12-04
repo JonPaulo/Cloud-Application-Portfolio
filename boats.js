@@ -22,7 +22,6 @@ const get_boat = lb.get_boat;
 const BOATS = lb.BOATS;
 const put_load_to_boat = lb.put_load_to_boat;
 const checkJwt = lb.checkJwt;
-const display_owner = lb.display_owner;
 
 /* -------------            BOATS              ------------- */
 /* ------------- Begin Boating Model Functions ------------- */
@@ -107,8 +106,6 @@ router.post('/', checkJwt, async function (req, res) {
             res.status(201).json(boat);
         });
     }
-    // console.log('/ posted new content');
-    // console.log(req.user);
 });
 
 // GET - View all boats
