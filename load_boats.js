@@ -4,9 +4,9 @@ const LOADS = 'Loads';
 const BOATS = "Boats";
 const USERS = 'Users';
 
-const CLIENT_ID = 'ENR7LX4q7DFRigIs8qWkynRjW26bhKB7';
-const CLIENT_SECRET = 'SiGMLJjZ9TZ-wQASEMH5-QltZl-II8OznX5fjeZj1Xzl7lrMOfBulM-qx-cW68Ar';
-const DOMAIN = 'dev-rf93icrq.us.auth0.com';
+const CLIENT_ID = '';
+const CLIENT_SECRET = '';
+const DOMAIN = '';
 
 const ds = require('./datastore');
 const datastore = ds.datastore;
